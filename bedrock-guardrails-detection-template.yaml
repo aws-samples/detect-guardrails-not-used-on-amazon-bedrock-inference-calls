@@ -1,0 +1,523 @@
+---
+Parameters:
+  BedrockLogsBucket:
+    Type: "String"
+    Description: "The bucket which will hold Bedrock model invocation logs." 
+  LambdaFunctionCodeBucket:
+    Type: "String"
+    Description: "An Amazon S3 bucket in the same AWS-Region as your function. The\
+      \ bucket can be in a different AWS-account.\nThis property can be replaced with\
+      \ other exclusive properties"
+  LambdaFunctionCodeBucketKey:
+    Type: "String"
+    Description: "The Amazon S3 key of the deployment package.\nThis property can\
+      \ be replaced with other exclusive properties"
+  NotificationEmailAddress:
+    Type: "String"
+    Description: "The email address to subscribe to the topic to get notifications on guardrails not used."
+  BedrockLogsErrorBucket:
+    Type: "String"
+    Description: "The bucket which will hold Bedrock logs that contain processing errors." 
+Resources:
+  DynamoDBTable00guardraildefaulterstransactions00JExLY:
+    UpdateReplacePolicy: "Delete"
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Delete"
+    Properties:
+      SSESpecification:
+        SSEEnabled: false
+      TableName: "guardrail-defaulters-transactions"
+      AttributeDefinitions:
+      - AttributeType: "S"
+        AttributeName: "timestamp"
+      ContributorInsightsSpecification:
+        Enabled: false
+      BillingMode: "PROVISIONED"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      ProvisionedThroughput:
+        WriteCapacityUnits: 1
+        ReadCapacityUnits: 1
+      KeySchema:
+      - KeyType: "HASH"
+        AttributeName: "timestamp"
+      DeletionProtectionEnabled: false
+      TableClass: "STANDARD"
+      Tags: []
+      TimeToLiveSpecification:
+        Enabled: false
+  IAMRole00StepFunctionsdetectguardrailsbedrockcallsrole9jyojcmbs00C4m1s:
+    UpdateReplacePolicy: "Delete"
+    Type: "AWS::IAM::Role"
+    DeletionPolicy: "Delete"
+    Properties:
+      Path: "/service-role/"
+      ManagedPolicyArns:
+      - "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+      - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+      - "arn:aws:iam::aws:policy/AWSLambda_FullAccess"
+      - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+      MaxSessionDuration: 3600
+      RoleName: "StepFunctions-detect-guardrails-bedrock-calls-role-9jyojcmbs"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Action: "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            Service: "states.amazonaws.com"
+  EventsRule00ruleroutebedrockinvocationlogs00bNlw8:
+    UpdateReplacePolicy: "Delete"
+    Type: "AWS::Events::Rule"
+    DeletionPolicy: "Delete"
+    Properties:
+      EventBusName: "default"
+      EventPattern:
+        detail-type:
+        - "Object Created"
+        source:
+        - "aws.s3"
+        detail:
+          bucket:
+            name:
+            - Ref: "BedrockLogsBucket"
+      Description: "Route Bedrock invocation logs event notification from S3 to Step\
+        \ Functions state machine"
+      State: "ENABLED"
+      Targets:
+      - Arn:
+          Ref: "StepFunctionsStateMachine00stateMachinedetectguardrailsbedrockcalls00eiT2L"
+        RoleArn:
+          Fn::GetAtt:
+          - "IAMRole00AmazonEventBridgeInvokeStepFunctions198816440300TrmT8"
+          - "Arn"
+        Id: "Id9e3a8794-6576-4d1b-bafd-cca29d783023"
+      Id: "route-bedrock-invocation-logs"
+      Name: "route-bedrock-invocation-logs"
+  IAMRole00GetBedrockLogsrolev84fov0600En60a:
+    UpdateReplacePolicy: "Delete"
+    Type: "AWS::IAM::Role"
+    DeletionPolicy: "Delete"
+    Properties:
+      Path: "/service-role/"
+      ManagedPolicyArns:
+      - "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+      MaxSessionDuration: 3600
+      RoleName: "GetBedrockLogs-role-v84fov06"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Action: "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            Service: "lambda.amazonaws.com"
+  IAMManagedPolicy00policyserviceroleAmazonEventBridgeInvokeStepFunctions1988164403004JObT:
+    UpdateReplacePolicy: "Delete"
+    Type: "AWS::IAM::ManagedPolicy"
+    DeletionPolicy: "Delete"
+    Properties:
+      ManagedPolicyName: "Amazon_EventBridge_Invoke_Step_Functions_1988164403"
+      Path: "/service-role/"
+      Description: ""
+      Groups: []
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Resource:
+          - !Sub "arn:aws:states:us-east-1:${AWS::AccountId}:stateMachine:detect-guardrails-bedrock-calls"
+          Action:
+          - "states:StartExecution"
+          Effect: "Allow"
+      Users: []
+  DynamoDBTable00guardraildefaultersnotifications00MIXyY:
+    UpdateReplacePolicy: "Delete"
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Delete"
+    Properties:
+      SSESpecification:
+        SSEEnabled: false
+      TableName: "guardrail-defaulters-notifications"
+      AttributeDefinitions:
+      - AttributeType: "S"
+        AttributeName: "date-identity"
+      ContributorInsightsSpecification:
+        Enabled: false
+      BillingMode: "PROVISIONED"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      ProvisionedThroughput:
+        WriteCapacityUnits: 1
+        ReadCapacityUnits: 1
+      KeySchema:
+      - KeyType: "HASH"
+        AttributeName: "date-identity"
+      DeletionProtectionEnabled: false
+      TableClass: "STANDARD"
+      Tags: []
+      TimeToLiveSpecification:
+        Enabled: false
+  SNSTopic00guardrailtopic00HwXlo:
+    UpdateReplacePolicy: "Delete"
+    Type: "AWS::SNS::Topic"
+    DeletionPolicy: "Delete"
+    Properties:
+      FifoTopic: false
+      Subscription:
+      - Endpoint: 
+          Ref: "NotificationEmailAddress"
+        Protocol: "email"
+      TracingConfig: "PassThrough"
+      TopicName: "guardrail-topic"
+  StepFunctionsStateMachine00stateMachinedetectguardrailsbedrockcalls00eiT2L:
+    UpdateReplacePolicy: "Delete"
+    Type: "AWS::StepFunctions::StateMachine"
+    DeletionPolicy: "Delete"
+    Properties:
+      DefinitionString: !Sub
+          - |
+            {
+              "Comment": "A description of my state machine",
+              "StartAt": "Get Bedrock invocation log from S3",
+              "States": {
+                "Get Bedrock invocation log from S3": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke",
+                  "Parameters": {
+                    "FunctionName": "${lambdaArn}",
+                    "Payload": {
+                      "bucket.$": "$.detail.bucket.name",
+                      "key.$": "$.detail.object.key"
+                    }
+                  },
+                  "Retry": [
+                    {
+                      "ErrorEquals": [
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException",
+                        "Lambda.TooManyRequestsException"
+                      ],
+                      "IntervalSeconds": 1,
+                      "MaxAttempts": 3,
+                      "BackoffRate": 2
+                    }
+                  ],
+                  "Next": "Was there a valid output from Bedrock?"
+                },
+                "Was there a valid output from Bedrock?": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Variable": "$.Payload.output",
+                      "IsPresent": true,
+                      "Next": "Map output"
+                    }
+                  ],
+                  "Default": "Log error in error bucket"
+                },
+                "Log error in error bucket": {
+                  "Type": "Task",
+                  "Parameters": {
+                    "Body": {
+                      "error": {
+                        "cause": "No output detected from model",
+                        "timestamp.$": "$.Payload.timestamp",
+                        "accountId.$": "$.Payload.accountId",
+                        "region.$": "$.Payload.region",
+                        "identity.$": "$.Payload.identity",
+                        "operation.$": "$.Payload.operation"
+                      }
+                    },
+                    "Bucket": "${ErrorBucket}",
+                    "Key.$": "$.Payload.timestamp"
+                  },
+                  "Resource": "arn:aws:states:::aws-sdk:s3:putObject",
+                  "End": true
+                },
+                "Map output": {
+                  "Type": "Pass",
+                  "Next": "Guardrail used?",
+                  "Parameters": {
+                    "timestamp.$": "$.Payload.timestamp",
+                    "accountId.$": "$.Payload.accountId",
+                    "region.$": "$.Payload.region",
+                    "identity.$": "$.Payload.identity",
+                    "operation.$": "$.Payload.operation",
+                    "output.$": "$.Payload.output"
+                  }
+                },
+                "Guardrail used?": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Or": [
+                        {
+                          "And": [
+                            {
+                              "Variable": "$.operation",
+                              "StringMatches": "InvokeModel*"
+                            },
+                            {
+                              "Variable": "$.output.outputBodyJson.amazon-bedrock-guardrailAction",
+                              "IsPresent": false
+                            }
+                          ]
+                        },
+                        {
+                          "And": [
+                            {
+                              "Variable": "$.operation",
+                              "StringMatches": "Converse*"
+                            },
+                            {
+                              "Not": {
+                                "Variable": "$.output.outputBodyJson.stopReason",
+                                "StringEquals": "guardrail_intervened"
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "Comment": "Guardrail NOT used",
+                      "Next": "Strip out model response"
+                    }
+                  ],
+                  "Default": "Success"
+                },
+                "Success": {
+                  "Type": "Succeed"
+                },
+                "Strip out model response": {
+                  "Type": "Pass",
+                  "Next": "Add transaction date",
+                  "Parameters": {
+                    "timestamp.$": "$.timestamp",
+                    "accountId.$": "$.accountId",
+                    "region.$": "$.region",
+                    "identity.$": "$.identity.arn",
+                    "operation.$": "$.operation",
+                    "YYYY.$": "States.ArrayGetItem(States.StringSplit(States.ArrayGetItem(States.StringSplit($.timestamp, 'T'), 0), '-'), 0)",
+                    "MM.$": "States.ArrayGetItem(States.StringSplit(States.ArrayGetItem(States.StringSplit($.timestamp, 'T'),0), '-'), 1)",
+                    "DD.$": "States.ArrayGetItem(States.StringSplit(States.ArrayGetItem(States.StringSplit($.timestamp, 'T'),0), '-'), 2)"
+                  }
+                },
+                "Add transaction date": {
+                  "Type": "Pass",
+                  "Next": "Parallel",
+                  "Parameters": {
+                    "timestamp.$": "$.timestamp",
+                    "accountId.$": "$.accountId",
+                    "region.$": "$.region",
+                    "identity.$": "$.identity",
+                    "operation.$": "$.operation",
+                    "transactionDate.$": "States.Format('{}-{}-{}',$.YYYY,$.MM, $.DD)",
+                    "dateIdentity.$": "States.Format('{}|{}', States.Format('{}-{}-{}',$.YYYY,$.MM, $.DD), $.identity)"
+                  }
+                },
+                "Parallel": {
+                  "Type": "Parallel",
+                  "Branches": [
+                    {
+                      "StartAt": "Log transaction in transaction table",
+                      "States": {
+                        "Log transaction in transaction table": {
+                          "Type": "Task",
+                          "Resource": "arn:aws:states:::dynamodb:putItem",
+                          "Parameters": {
+                            "TableName": "${guardrailDefaultersTransactions}",
+                            "Item": {
+                              "timestamp": {
+                                "S.$": "$.timestamp"
+                              },
+                              "transactionDate": {
+                                "S.$": "$.transactionDate"
+                              },
+                              "accountId": {
+                                "S.$": "$.accountId"
+                              },
+                              "region": {
+                                "S.$": "$.region"
+                              },
+                              "identity": {
+                                "S.$": "$.identity"
+                              },
+                              "operation": {
+                                "S.$": "$.operation"
+                              }
+                            }
+                          },
+                          "ResultPath": null,
+                          "End": true
+                        }
+                      }
+                    },
+                    {
+                      "StartAt": "Search transaction in notifications table",
+                      "States": {
+                        "Search transaction in notifications table": {
+                          "Type": "Task",
+                          "Resource": "arn:aws:states:::dynamodb:getItem",
+                          "Parameters": {
+                            "TableName": "${guardrailDefaultersNotifications}",
+                            "Key": {
+                              "date-identity": {
+                                "S.$": "$.dateIdentity"
+                              }
+                            }
+                          },
+                          "Next": "Was notification sent out?",
+                          "ResultPath": "$.Response"
+                        },
+                        "Was notification sent out?": {
+                          "Type": "Choice",
+                          "Choices": [
+                            {
+                              "And": [
+                                {
+                                  "Variable": "$.Response.Item",
+                                  "IsPresent": true
+                                },
+                                {
+                                  "Variable": "$.Response.Item.notificationSent.BOOL",
+                                  "BooleanEquals": true
+                                }
+                              ],
+                              "Next": "Success (1)"
+                            }
+                          ],
+                          "Default": "Send email"
+                        },
+                        "Success (1)": {
+                          "Type": "Succeed"
+                        },
+                        "Send email": {
+                          "Type": "Task",
+                          "Resource": "arn:aws:states:::sns:publish",
+                          "Parameters": {
+                            "TopicArn": "${SNSTopicArn}",
+                            "Message": {
+                              "timestamp.$": "$.timestamp",
+                              "accountId.$": "$.accountId",
+                              "region.$": "$.region",
+                              "identity.$": "$.identity",
+                              "operation.$": "$.operation"
+                            }
+                          },
+                          "Next": "Log transaction in notifications table",
+                          "ResultPath": null
+                        },
+                        "Log transaction in notifications table": {
+                          "Type": "Task",
+                          "Resource": "arn:aws:states:::dynamodb:putItem",
+                          "Parameters": {
+                            "TableName": "${guardrailDefaultersNotifications}",
+                            "Item": {
+                              "date-identity": {
+                                "S.$": "$.dateIdentity"
+                              },
+                              "region": {
+                                "S.$": "$.region"
+                              },
+                              "identity": {
+                                "S.$": "$.identity"
+                              },
+                              "notificationSent": {
+                                "BOOL": true
+                              }
+                            }
+                          },
+                          "End": true
+                        }
+                      }
+                    }
+                  ],
+                  "End": true
+                }
+              }
+            }
+          - {
+              lambdaArn: !GetAtt LambdaFunction00GetBedrockLogs00uJ9AZ.Arn,
+              ErrorBucket: !Ref 'BedrockLogsErrorBucket',
+              guardrailDefaultersNotifications: !Ref 'DynamoDBTable00guardraildefaultersnotifications00MIXyY',
+              guardrailDefaultersTransactions: !Ref 'DynamoDBTable00guardraildefaulterstransactions00JExLY',
+              SNSTopicArn: !Ref 'SNSTopic00guardrailtopic00HwXlo'
+            }
+      EncryptionConfiguration:
+        Type: "AWS_OWNED_KEY"
+      LoggingConfiguration:
+        IncludeExecutionData: false
+        Level: "OFF"
+      StateMachineName: "detect-guardrails-bedrock-calls"
+      RoleArn:
+        Fn::GetAtt:
+        - "IAMRole00StepFunctionsdetectguardrailsbedrockcallsrole9jyojcmbs00C4m1s"
+        - "Arn"
+      Tags: []
+      StateMachineType: "STANDARD"
+      TracingConfiguration:
+        Enabled: false
+  IAMRole00AmazonEventBridgeInvokeStepFunctions198816440300TrmT8:
+    UpdateReplacePolicy: "Delete"
+    Type: "AWS::IAM::Role"
+    DeletionPolicy: "Delete"
+    Properties:
+      Path: "/service-role/"
+      ManagedPolicyArns:
+      - !Sub "arn:aws:iam::${AWS::AccountId}:policy/service-role/Amazon_EventBridge_Invoke_Step_Functions_1988164403"
+      MaxSessionDuration: 3600
+      RoleName: "Amazon_EventBridge_Invoke_Step_Functions_1988164403"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Action: "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            Service: "events.amazonaws.com"
+  LambdaFunction00GetBedrockLogs00uJ9AZ:
+    UpdateReplacePolicy: "Delete"
+    Type: "AWS::Lambda::Function"
+    DeletionPolicy: "Delete"
+    Properties:
+      MemorySize: 128
+      Description: ""
+      TracingConfig:
+        Mode: "PassThrough"
+      Timeout: 3
+      RuntimeManagementConfig:
+        UpdateRuntimeOn: "Auto"
+      Handler: "get-bedrock-logs-from-s3.lambda_handler"
+      Code:
+        S3Bucket:
+          Ref: "LambdaFunctionCodeBucket"
+        S3Key:
+          Ref: "LambdaFunctionCodeBucketKey"
+      Role:
+        Fn::GetAtt:
+        - "IAMRole00GetBedrockLogsrolev84fov0600En60a"
+        - "Arn"
+      FileSystemConfigs: []
+      FunctionName: "GetBedrockLogs"
+      Runtime: "python3.12"
+      PackageType: "Zip"
+      LoggingConfig:
+        LogFormat: "Text"
+        LogGroup: "/aws/lambda/GetBedrockLogs"
+      EphemeralStorage:
+        Size: 512
+      Architectures:
+      - "x86_64"
+  LambdaPermission00functionGetBedrockLogs00NniGn:
+    UpdateReplacePolicy: "Delete"
+    Type: "AWS::Lambda::Permission"
+    DeletionPolicy: "Delete"
+    Properties:
+      FunctionName:
+        Fn::GetAtt:
+        - "LambdaFunction00GetBedrockLogs00uJ9AZ"
+        - "Arn"
+      Action: "lambda:InvokeFunction"
+      SourceArn:
+        Fn::GetAtt:
+        - "IAMRole00StepFunctionsdetectguardrailsbedrockcallsrole9jyojcmbs00C4m1s"
+        - "Arn"
+      Principal: "states.amazonaws.com"
